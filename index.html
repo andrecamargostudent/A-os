@@ -3,68 +3,90 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A-OS Quantum Market</title>
+<title>A-OS Trading Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body{margin:0;font-family:Arial;background:#0b0f1a;color:white;}
 #loginScreen{display:flex;height:100vh;justify-content:center;align-items:center;flex-direction:column;}
 input{padding:10px;margin:10px;border:none;border-radius:5px;}
-button{padding:10px 20px;background:#00ff88;border:none;border-radius:5px;cursor:pointer;font-weight:bold;}
+button{padding:6px 12px;margin:2px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;}
+.buy{background:#00ff88;}
+.sell{background:#ff4d4d;}
+.logout{background:#888;}
 #market{display:none;padding:20px;}
 .topbar{display:flex;justify-content:space-between;margin-bottom:20px;}
-.stock{display:flex;justify-content:space-between;background:#111827;padding:10px;margin:5px 0;border-radius:5px;cursor:pointer;}
+.stock{background:#111827;padding:10px;margin:5px 0;border-radius:5px;}
 .green{color:#00ff88;}
 .red{color:#ff4d4d;}
-canvas{margin-top:20px;}
-#historyBox{margin-top:20px;background:#111827;padding:15px;border-radius:8px;}
+#portfolio{margin-top:20px;background:#111827;padding:15px;border-radius:8px;}
 </style>
 </head>
 <body>
 
 <div id="loginScreen">
-<h1>🔐 A-OS Quantum Login</h1>
+<h1>🔐 A-OS Trading</h1>
 <input type="text" id="username" placeholder="Digite seu nome">
 <button onclick="login()">Entrar</button>
 </div>
 
 <div id="market">
 <div class="topbar">
-<h2>📈 A-OS Quantum Market</h2>
-<div>Usuário: <span id="userDisplay"></span></div>
+<div>
+<h2>📈 A-OS Market</h2>
+Usuário: <span id="userDisplay"></span><br>
+Saldo: $<span id="balance"></span><br>
+Patrimônio: $<span id="networth"></span>
+</div>
+<button class="logout" onclick="logout()">Logout</button>
 </div>
 
 <div id="stocks"></div>
-<canvas id="chart"></canvas>
-<div id="historyBox"></div>
+<div id="portfolio"></div>
 </div>
 
 <script>
 let stocks=[
-{name:"Apple",price:150,history:[]},
-{name:"Microsoft",price:120,history:[]},
-{name:"Tesla",price:200,history:[]},
-{name:"Amazon",price:110,history:[]},
-{name:"Nvidia",price:300,history:[]},
-{name:"Meta",price:180,history:[]},
-{name:"Google",price:170,history:[]}
+{name:"Apple",price:150},
+{name:"Microsoft",price:120},
+{name:"Tesla",price:200},
+{name:"Amazon",price:110},
+{name:"Nvidia",price:300}
 ];
 
+let userData={
+balance:10000,
+portfolio:{}
+};
+
 function login(){
-const user=document.getElementById("username").value;
+const user=document.getElementById("username").value.trim();
 if(user){
 localStorage.setItem("aosUser",user);
+if(!localStorage.getItem("aosData")){
+localStorage.setItem("aosData",JSON.stringify(userData));
+}
 iniciarMarket();
 }
+}
+
+function logout(){
+localStorage.removeItem("aosUser");
+location.reload();
 }
 
 function iniciarMarket(){
 const user=localStorage.getItem("aosUser");
 if(!user)return;
+
+userData=JSON.parse(localStorage.getItem("aosData"));
+
 document.getElementById("loginScreen").style.display="none";
 document.getElementById("market").style.display="block";
 document.getElementById("userDisplay").innerText=user;
+
 renderStocks();
+renderPortfolio();
+updateFinance();
 }
 
 function renderStocks(){
@@ -73,62 +95,72 @@ container.innerHTML="";
 stocks.forEach((stock,i)=>{
 const change=(Math.random()*6-3);
 stock.price+=change;
-stock.history.push(stock.price.toFixed(2));
-if(stock.history.length>20) stock.history.shift();
 
 const div=document.createElement("div");
 div.className="stock";
 div.innerHTML=`
-<span>${stock.name}</span>
+<b>${stock.name}</b> 
 <span class="${change>=0?'green':'red'}">
 $${stock.price.toFixed(2)} (${change.toFixed(2)})
-</span>`;
-div.onclick=()=>mostrarDetalhes(i);
+</span><br>
+<button class="buy" onclick="buyStock(${i})">Comprar</button>
+<button class="sell" onclick="sellStock(${i})">Vender</button>
+`;
 container.appendChild(div);
 });
 }
 
-setInterval(renderStocks,5000);
-
-const ctx=document.getElementById("chart").getContext("2d");
-const chart=new Chart(ctx,{type:"line",data:{labels:[],datasets:[]}});
-
-function mostrarDetalhes(index){
+function buyStock(index){
 const stock=stocks[index];
-const user=localStorage.getItem("aosUser");
-
-document.getElementById("historyBox").innerHTML=
-"<b>Histórico recente:</b><br>"+stock.history.join(" → ");
-
-chart.data.labels=stock.history.map((_,i)=>"T"+i);
-chart.data.datasets=[{
-label:"Histórico",
-data:stock.history,
-borderColor:"#00ff88"
-}];
-
-if(user==="dev"){
-let previsao=[];
-let ultimo=parseFloat(stock.history[stock.history.length-1]);
-let tendencia=stock.history[stock.history.length-1]-stock.history[0];
-
-for(let i=0;i<5;i++){
-ultimo+=tendencia/10 + (Math.random()*2-1);
-previsao.push(ultimo.toFixed(2));
+if(userData.balance>=stock.price){
+userData.balance-=stock.price;
+userData.portfolio[stock.name]=(userData.portfolio[stock.name]||0)+1;
+saveData();
+renderPortfolio();
+updateFinance();
+}
 }
 
-chart.data.datasets.push({
-label:"Previsão DEV",
-data:[...Array(stock.history.length).fill(null),...previsao],
-borderColor:"#ffcc00",
-borderDash:[5,5]
-});
-
-chart.data.labels=[...chart.data.labels,"F1","F2","F3","F4","F5"];
+function sellStock(index){
+const stock=stocks[index];
+if(userData.portfolio[stock.name]>0){
+userData.portfolio[stock.name]-=1;
+userData.balance+=stock.price;
+saveData();
+renderPortfolio();
+updateFinance();
+}
 }
 
-chart.update();
+function renderPortfolio(){
+let html="<h3>🏦 Carteira</h3>";
+for(let stock in userData.portfolio){
+if(userData.portfolio[stock]>0){
+html+=`${stock}: ${userData.portfolio[stock]} ações<br>`;
 }
+}
+document.getElementById("portfolio").innerHTML=html;
+}
+
+function updateFinance(){
+let total=userData.balance;
+for(let stock of stocks){
+if(userData.portfolio[stock.name]){
+total+=stock.price*userData.portfolio[stock.name];
+}
+}
+document.getElementById("balance").innerText=userData.balance.toFixed(2);
+document.getElementById("networth").innerText=total.toFixed(2);
+}
+
+function saveData(){
+localStorage.setItem("aosData",JSON.stringify(userData));
+}
+
+setInterval(()=>{
+renderStocks();
+updateFinance();
+},5000);
 
 iniciarMarket();
 </script>
