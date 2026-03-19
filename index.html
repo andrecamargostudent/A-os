@@ -3,153 +3,131 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A-OS Market Pro</title>
+<title>A-OS Quantum Market</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-    margin:0;
-    font-family:Arial;
-    background:#0b0f1a;
-    color:white;
-}
-
-#loginScreen{
-    display:flex;
-    height:100vh;
-    justify-content:center;
-    align-items:center;
-    flex-direction:column;
-}
-
-input{
-    padding:10px;
-    margin:10px;
-    border:none;
-    border-radius:5px;
-}
-
-button{
-    padding:10px 20px;
-    background:#00ff88;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-    font-weight:bold;
-}
-
-#market{
-    display:none;
-    padding:20px;
-}
-
-.topbar{
-    display:flex;
-    justify-content:space-between;
-    margin-bottom:20px;
-}
-
-.stock{
-    display:flex;
-    justify-content:space-between;
-    background:#111827;
-    padding:10px;
-    margin:5px 0;
-    border-radius:5px;
-}
-
+body{margin:0;font-family:Arial;background:#0b0f1a;color:white;}
+#loginScreen{display:flex;height:100vh;justify-content:center;align-items:center;flex-direction:column;}
+input{padding:10px;margin:10px;border:none;border-radius:5px;}
+button{padding:10px 20px;background:#00ff88;border:none;border-radius:5px;cursor:pointer;font-weight:bold;}
+#market{display:none;padding:20px;}
+.topbar{display:flex;justify-content:space-between;margin-bottom:20px;}
+.stock{display:flex;justify-content:space-between;background:#111827;padding:10px;margin:5px 0;border-radius:5px;cursor:pointer;}
 .green{color:#00ff88;}
 .red{color:#ff4d4d;}
-
-canvas{
-    margin-top:20px;
-}
+canvas{margin-top:20px;}
+#historyBox{margin-top:20px;background:#111827;padding:15px;border-radius:8px;}
 </style>
 </head>
 <body>
 
 <div id="loginScreen">
-    <h1>🔐 A-OS Login</h1>
-    <input type="text" id="username" placeholder="Digite seu nome">
-    <button onclick="login()">Entrar</button>
+<h1>🔐 A-OS Quantum Login</h1>
+<input type="text" id="username" placeholder="Digite seu nome">
+<button onclick="login()">Entrar</button>
 </div>
 
 <div id="market">
-    <div class="topbar">
-        <h2>📈 A-OS Market</h2>
-        <div>Usuário: <span id="userDisplay"></span></div>
-    </div>
+<div class="topbar">
+<h2>📈 A-OS Quantum Market</h2>
+<div>Usuário: <span id="userDisplay"></span></div>
+</div>
 
-    <div id="stocks"></div>
-    <canvas id="chart"></canvas>
+<div id="stocks"></div>
+<canvas id="chart"></canvas>
+<div id="historyBox"></div>
 </div>
 
 <script>
 let stocks=[
-    {name:"Apple",price:150},
-    {name:"Microsoft",price:120},
-    {name:"Tesla",price:200},
-    {name:"Amazon",price:110}
+{name:"Apple",price:150,history:[]},
+{name:"Microsoft",price:120,history:[]},
+{name:"Tesla",price:200,history:[]},
+{name:"Amazon",price:110,history:[]},
+{name:"Nvidia",price:300,history:[]},
+{name:"Meta",price:180,history:[]},
+{name:"Google",price:170,history:[]}
 ];
 
 function login(){
-    const user=document.getElementById("username").value;
-    if(user){
-        localStorage.setItem("aosUser",user);
-        iniciarMarket();
-    }
+const user=document.getElementById("username").value;
+if(user){
+localStorage.setItem("aosUser",user);
+iniciarMarket();
+}
 }
 
 function iniciarMarket(){
-    const user=localStorage.getItem("aosUser");
-    if(!user)return;
-
-    document.getElementById("loginScreen").style.display="none";
-    document.getElementById("market").style.display="block";
-    document.getElementById("userDisplay").innerText=user;
-
-    renderStocks();
+const user=localStorage.getItem("aosUser");
+if(!user)return;
+document.getElementById("loginScreen").style.display="none";
+document.getElementById("market").style.display="block";
+document.getElementById("userDisplay").innerText=user;
+renderStocks();
 }
 
 function renderStocks(){
-    const container=document.getElementById("stocks");
-    container.innerHTML="";
-    stocks.forEach((stock,i)=>{
-        const change=(Math.random()*4-2).toFixed(2);
-        stock.price+=parseFloat(change);
+const container=document.getElementById("stocks");
+container.innerHTML="";
+stocks.forEach((stock,i)=>{
+const change=(Math.random()*6-3);
+stock.price+=change;
+stock.history.push(stock.price.toFixed(2));
+if(stock.history.length>20) stock.history.shift();
 
-        const div=document.createElement("div");
-        div.className="stock";
-        div.innerHTML=`
-            <span>${stock.name}</span>
-            <span class="${change>=0?'green':'red'}">
-                $${stock.price.toFixed(2)} (${change})
-            </span>
-        `;
-        div.onclick=()=>mostrarGrafico(i);
-        container.appendChild(div);
-    });
+const div=document.createElement("div");
+div.className="stock";
+div.innerHTML=`
+<span>${stock.name}</span>
+<span class="${change>=0?'green':'red'}">
+$${stock.price.toFixed(2)} (${change.toFixed(2)})
+</span>`;
+div.onclick=()=>mostrarDetalhes(i);
+container.appendChild(div);
+});
 }
 
 setInterval(renderStocks,5000);
 
 const ctx=document.getElementById("chart").getContext("2d");
-const chart=new Chart(ctx,{
-    type:"line",
-    data:{labels:[],datasets:[{label:"Preço",data:[],borderColor:"#00ff88"}]}
+const chart=new Chart(ctx,{type:"line",data:{labels:[],datasets:[]}});
+
+function mostrarDetalhes(index){
+const stock=stocks[index];
+const user=localStorage.getItem("aosUser");
+
+document.getElementById("historyBox").innerHTML=
+"<b>Histórico recente:</b><br>"+stock.history.join(" → ");
+
+chart.data.labels=stock.history.map((_,i)=>"T"+i);
+chart.data.datasets=[{
+label:"Histórico",
+data:stock.history,
+borderColor:"#00ff88"
+}];
+
+if(user==="dev"){
+let previsao=[];
+let ultimo=parseFloat(stock.history[stock.history.length-1]);
+let tendencia=stock.history[stock.history.length-1]-stock.history[0];
+
+for(let i=0;i<5;i++){
+ultimo+=tendencia/10 + (Math.random()*2-1);
+previsao.push(ultimo.toFixed(2));
+}
+
+chart.data.datasets.push({
+label:"Previsão DEV",
+data:[...Array(stock.history.length).fill(null),...previsao],
+borderColor:"#ffcc00",
+borderDash:[5,5]
 });
 
-function mostrarGrafico(index){
-    let price=stocks[index].price;
-    chart.data.labels=[];
-    chart.data.datasets[0].data=[];
+chart.data.labels=[...chart.data.labels,"F1","F2","F3","F4","F5"];
+}
 
-    for(let i=0;i<12;i++){
-        chart.data.labels.push("Min "+i);
-        price+=Math.random()*6-3;
-        chart.data.datasets[0].data.push(price.toFixed(2));
-    }
-    chart.update();
+chart.update();
 }
 
 iniciarMarket();
